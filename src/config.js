@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseURL = "http://127.0.0.1:8000/api"; // Replace with your backend URL
+const baseURL = "https://gas-utility-backend.onrender.com/api"; // Replace with your backend URL
 
 const api = axios.create({
   baseURL,
