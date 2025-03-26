@@ -1,10 +1,11 @@
 import { useState } from "react";
-import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import api from "../config"; // Import the configured axios instance
 
 const NewService = () => {
   const [requestType, setRequestType] = useState("");
   const [details, setDetails] = useState("");
-  const token = localStorage.getItem("access_token");
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -12,13 +13,10 @@ const NewService = () => {
     const requestData = { request_type: requestType, details };
 
     try {
-      const response = await axios.post(
-        "http://127.0.0.1:8000/api/requests/create/",
-        requestData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await api.post("/requests/create/", requestData);
       alert("Service request created successfully!");
       console.log("Request Created:", response.data);
+      navigate("/account"); // Redirect to the account page after submission
     } catch (error) {
       alert(`Error: ${error.response?.data?.message || error.message}`);
       console.error("Error:", error.response?.data || error.message);

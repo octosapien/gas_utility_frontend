@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../config/api"; // Import the configured axios instance
+import api from "../config"; // Import the configured axios instance
 
 const Register = () => {
   const [userData, setUserData] = useState({
