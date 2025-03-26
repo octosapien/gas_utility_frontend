@@ -6,11 +6,16 @@ const NewService = () => {
   const [requestType, setRequestType] = useState("");
   const [details, setDetails] = useState("");
   const navigate = useNavigate();
+  const token = localStorage.getItem("access_token");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const requestData = { request_type: requestType, details };
+    const requestData = {
+      request_type: requestType,
+      details,
+      authorization: `Bearer ${token}`, // Include authorization in payload
+    };
 
     try {
       const response = await api.post("/requests/create/", requestData);
