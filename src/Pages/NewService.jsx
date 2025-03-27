@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../config"; // Import the configured axios instance
 
@@ -6,22 +6,62 @@ const NewService = () => {
   const [requestType, setRequestType] = useState("");
   const [details, setDetails] = useState("");
   const navigate = useNavigate();
-  const token = localStorage.getItem("access_token");
+
+  // Function to refresh the token
+  const refreshToken = async () => {
+    try {
+      const refresh_token = localStorage.getItem("refresh_token");
+      if (!refresh_token) {
+        throw new Error("No refresh token available. Please log in again.");
+      }
+
+      const response = await api.post("/api/token/refresh/", { refresh: refresh_token });
+
+      localStorage.setItem("access_token", response.data.access);
+      return response.data.access;
+    } catch (error) {
+      console.error("Token refresh failed:", error);
+      alert("Session expired. Please log in again.");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      navigate("/login"); // Redirect to login page
+    }
+  };
+
+  // Function to get a valid access token
+  const getValidToken = async () => {
+    let token = localStorage.getItem("access_token");
+    if (!token) {
+      return await refreshToken();
+    }
+    return token;
+  };
+
+  // Automatically refresh token every 10 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshToken();
+    }, 10 * 60 * 1000); // Refresh every 10 minutes
+
+    return () => clearInterval(interval); // Cleanup on component unmount
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const token = await getValidToken(); // Ensure a valid token before making request
 
     const requestData = {
       request_type: requestType,
       details,
-      authorization: `Bearer ${token}`, // Include authorization in payload
     };
 
     try {
-      const response = await api.post("/requests/create/", requestData);
+      const response = await api.post("/requests/create/", requestData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       alert("Service request created successfully!");
       console.log("Request Created:", response.data);
-      navigate("/account"); // Redirect to the account page after submission
+      navigate("/account"); // Redirect to account page after submission
     } catch (error) {
       alert(`Error: ${error.response?.data?.message || error.message}`);
       console.error("Error:", error.response?.data || error.message);

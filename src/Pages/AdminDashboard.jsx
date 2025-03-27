@@ -5,47 +5,99 @@ import api from "../config"; // Import the configured axios instance
 const AdminDashboard = () => {
   const [requests, setRequests] = useState([]);
   const navigate = useNavigate();
-  const token = localStorage.getItem("access_token");
-  const role = localStorage.getItem("role");
+
+  // Function to refresh the token
+  const refreshToken = async () => {
+    try {
+      const refresh_token = localStorage.getItem("refresh_token");
+      if (!refresh_token) {
+        throw new Error("No refresh token available. Please log in again.");
+      }
+
+      const response = await api.post("/api/token/refresh/", { refresh: refresh_token });
+
+      localStorage.setItem("access_token", response.data.access);
+      return response.data.access;
+    } catch (error) {
+      console.error("Token refresh failed:", error);
+      alert("Session expired. Please log in again.");
+      localStorage.clear();
+      navigate("/login");
+    }
+  };
+
+  // Function to get a valid access token
+  const getValidToken = async () => {
+    let token = localStorage.getItem("access_token");
+    if (!token) {
+      return await refreshToken();
+    }
+    return token;
+  };
+
+  // Wrapper function to handle API requests with auto-refresh on 401
+  const handleRequestWithRefresh = async (apiCall) => {
+    try {
+      return await apiCall();
+    } catch (error) {
+      if (error.response?.status === 401) {
+        console.warn("Unauthorized request. Attempting token refresh...");
+        const newToken = await refreshToken();
+        if (!newToken) return;
+        return await apiCall(); // Retry request with new token
+      } else {
+        throw error;
+      }
+    }
+  };
+
+  // Automatically refresh token every 10 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshToken();
+    }, 10 * 60 * 1000); // Refresh every 10 minutes
+
+    return () => clearInterval(interval); // Cleanup on component unmount
+  }, []);
 
   useEffect(() => {
-    if (!token || role !== "ADMIN") {
-      alert("Access denied. Admins only.");
-      navigate("/login");
-      return;
-    }
+    const fetchRequests = async () => {
+      const role = localStorage.getItem("role");
 
-    api
-      .get("/admin/requests/", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((response) => setRequests(response.data))
-      .catch((error) => {
-        console.error("Error fetching requests:", error);
-        alert("Error fetching requests.");
+      if (role !== "ADMIN") {
+        alert("Access denied. Admins only.");
+        navigate("/login");
+        return;
+      }
+
+      await handleRequestWithRefresh(async () => {
+        const token = await getValidToken();
+        const response = await api.get("/admin/requests/", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setRequests(response.data);
       });
-  }, [navigate, token, role]);
+    };
+
+    fetchRequests();
+  }, [navigate]);
 
   const updateStatus = async (requestId, newStatus) => {
-    try {
+    await handleRequestWithRefresh(async () => {
+      const token = await getValidToken();
       const response = await api.patch(
         `/admin/requests/${requestId}/`,
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      const updatedRequest = response.data; // ✅ Get the latest request data
-
-      // ✅ Update only the modified request in state
+      const updatedRequest = response.data;
       setRequests((prevRequests) =>
         prevRequests.map((req) => (req.id === requestId ? updatedRequest : req))
       );
 
       alert("Request status updated successfully!");
-    } catch (error) {
-      console.error("Error updating status:", error);
-      alert("Failed to update request status.");
-    }
+    });
   };
 
   return (
@@ -71,7 +123,7 @@ const AdminDashboard = () => {
             <p>
               <strong>Status:</strong> {req.status}
             </p>
-            {req.status !== "resolved" && ( // ✅ Hide button if already resolved
+            {req.status !== "resolved" && (
               <button
                 onClick={() => updateStatus(req.id, "resolved")}
                 style={{
