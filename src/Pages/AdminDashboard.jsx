@@ -4,7 +4,6 @@ import api from "../config"; // Import the configured axios instance
 
 const AdminDashboard = () => {
   const [requests, setRequests] = useState([]);
-  const [users, setUsers] = useState({}); // Store user details
   const navigate = useNavigate();
 
   const refreshToken = async () => {
@@ -73,21 +72,6 @@ const AdminDashboard = () => {
         });
         console.log("Fetched Requests:", response.data);
         setRequests(response.data);
-
-        // Fetch user details for each request
-        const userIds = [...new Set(response.data.map((req) => req.user))]; // Unique user IDs
-        const userDetails = {};
-        for (let userId of userIds) {
-          try {
-            const userRes = await api.get(`/admin/users/${userId}/`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            userDetails[userId] = userRes.data;
-          } catch (error) {
-            console.error(`Failed to fetch user ${userId}:`, error);
-          }
-        }
-        setUsers(userDetails);
       });
     };
 
@@ -126,49 +110,48 @@ const AdminDashboard = () => {
             padding: "20px",
           }}
         >
-          {requests?.map((request) => (
-            <div
-              key={request.id}
-              style={{
-                border: "1px solid #ddd",
-                padding: "15px",
-                borderRadius: "5px",
-                backgroundColor: "#f9f9f9",
-                boxShadow: "2px 2px 8px rgba(0, 0, 0, 0.1)",
-              }}
+          {requests?.map(({ user, request }) => (
+        <div
+            key={request.id} // Ensure this key is unique
+            style={{
+            border: "1px solid #ddd",
+            padding: "15px",
+            borderRadius: "5px",
+            backgroundColor: "#f9f9f9",
+            boxShadow: "2px 2px 8px rgba(0, 0, 0, 0.1)",
+            }}
+        >
+            <h4 style={{ marginBottom: "10px", color: "#333" }}>Request ID: {request.id}</h4>
+            <p>
+            <strong>User:</strong> {user.username} ({user.email}) {/* Ensure only strings are rendered */}
+            </p>
+            <p>
+            <strong>Request Type:</strong> {request.request_type}
+            </p>
+            <p>
+            <strong>Details:</strong> {request.details}
+            </p>
+            <p>
+            <strong>Status:</strong> {request.status}
+            </p>
+            {request.status !== "resolved" && (
+            <button
+                onClick={() => updateStatus(request.id, "resolved")}
+                style={{
+                padding: "5px 10px",
+                backgroundColor: "#ffc107",
+                border: "none",
+                cursor: "pointer",
+                borderRadius: "3px",
+                marginTop: "10px",
+                }}
             >
-              <h4 style={{ marginBottom: "10px", color: "#333" }}>Request ID: {request.id}</h4>
-              <p>
-                <strong>User ID:</strong>{" "}
-                {/* {users[request.user] ? `${users[request.user].username} (${users[request.user].email})` : "Loading..."} */}
-                {request.user}
-              </p>
-              <p>
-                <strong>Request Type:</strong> {request.request_type}
-              </p>
-              <p>
-                <strong>Details:</strong> {request.details}
-              </p>
-              <p>
-                <strong>Status:</strong> {request.status}
-              </p>
-              {request.status !== "resolved" && (
-                <button
-                  onClick={() => updateStatus(request.id, "resolved")}
-                  style={{
-                    padding: "5px 10px",
-                    backgroundColor: "#ffc107",
-                    border: "none",
-                    cursor: "pointer",
-                    borderRadius: "3px",
-                    marginTop: "10px",
-                  }}
-                >
-                  Mark Resolved
-                </button>
-              )}
-            </div>
-          ))}
+                Mark Resolved
+            </button>
+            )}
+        </div>
+        ))}
+
         </div>
       ) : (
         <p>No requests available.</p>
