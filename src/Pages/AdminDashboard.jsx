@@ -4,9 +4,9 @@ import api from "../config"; // Import the configured axios instance
 
 const AdminDashboard = () => {
   const [requests, setRequests] = useState([]);
+  const [users, setUsers] = useState({}); // Store user details
   const navigate = useNavigate();
 
-  // Function to refresh the token
   const refreshToken = async () => {
     try {
       const refresh_token = localStorage.getItem("refresh_token");
@@ -15,7 +15,6 @@ const AdminDashboard = () => {
       }
 
       const response = await api.post("/api/token/refresh/", { refresh: refresh_token });
-
       localStorage.setItem("access_token", response.data.access);
       return response.data.access;
     } catch (error) {
@@ -26,7 +25,6 @@ const AdminDashboard = () => {
     }
   };
 
-  // Function to get a valid access token
   const getValidToken = async () => {
     let token = localStorage.getItem("access_token");
     if (!token) {
@@ -35,7 +33,6 @@ const AdminDashboard = () => {
     return token;
   };
 
-  // Wrapper function to handle API requests with auto-refresh on 401
   const handleRequestWithRefresh = async (apiCall) => {
     try {
       return await apiCall();
@@ -44,20 +41,19 @@ const AdminDashboard = () => {
         console.warn("Unauthorized request. Attempting token refresh...");
         const newToken = await refreshToken();
         if (!newToken) return;
-        return await apiCall(); // Retry request with new token
+        return await apiCall();
       } else {
         throw error;
       }
     }
   };
 
-  // Automatically refresh token every 10 minutes
   useEffect(() => {
     const interval = setInterval(() => {
       refreshToken();
-    }, 10 * 60 * 1000); // Refresh every 10 minutes
+    }, 10 * 60 * 1000);
 
-    return () => clearInterval(interval); // Cleanup on component unmount
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -75,7 +71,23 @@ const AdminDashboard = () => {
         const response = await api.get("/admin/requests/", {
           headers: { Authorization: `Bearer ${token}` },
         });
+        console.log("Fetched Requests:", response.data);
         setRequests(response.data);
+
+        // Fetch user details for each request
+        const userIds = [...new Set(response.data.map((req) => req.user))]; // Unique user IDs
+        const userDetails = {};
+        for (let userId of userIds) {
+          try {
+            const userRes = await api.get(`/admin/users/${userId}/`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            userDetails[userId] = userRes.data;
+          } catch (error) {
+            console.error(`Failed to fetch user ${userId}:`, error);
+          }
+        }
+        setUsers(userDetails);
       });
     };
 
@@ -105,39 +117,59 @@ const AdminDashboard = () => {
       <h2>Admin Dashboard</h2>
 
       {requests.length > 0 ? (
-        requests.map((req) => (
-          <div
-            key={req.id}
-            style={{
-              border: "1px solid #ddd",
-              padding: "10px",
-              margin: "10px auto",
-              width: "300px",
-              borderRadius: "5px",
-              textAlign: "left",
-            }}
-          >
-            <p>
-              <strong>Request ID:</strong> {req.id}
-            </p>
-            <p>
-              <strong>Status:</strong> {req.status}
-            </p>
-            {req.status !== "resolved" && (
-              <button
-                onClick={() => updateStatus(req.id, "resolved")}
-                style={{
-                  padding: "5px 10px",
-                  backgroundColor: "#ffc107",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                Mark Resolved
-              </button>
-            )}
-          </div>
-        ))
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+            gap: "15px",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+        >
+          {requests?.map((request) => (
+            <div
+              key={request.id}
+              style={{
+                border: "1px solid #ddd",
+                padding: "15px",
+                borderRadius: "5px",
+                backgroundColor: "#f9f9f9",
+                boxShadow: "2px 2px 8px rgba(0, 0, 0, 0.1)",
+              }}
+            >
+              <h4 style={{ marginBottom: "10px", color: "#333" }}>Request ID: {request.id}</h4>
+              <p>
+                <strong>User ID:</strong>{" "}
+                {/* {users[request.user] ? `${users[request.user].username} (${users[request.user].email})` : "Loading..."} */}
+                {request.user}
+              </p>
+              <p>
+                <strong>Request Type:</strong> {request.request_type}
+              </p>
+              <p>
+                <strong>Details:</strong> {request.details}
+              </p>
+              <p>
+                <strong>Status:</strong> {request.status}
+              </p>
+              {request.status !== "resolved" && (
+                <button
+                  onClick={() => updateStatus(request.id, "resolved")}
+                  style={{
+                    padding: "5px 10px",
+                    backgroundColor: "#ffc107",
+                    border: "none",
+                    cursor: "pointer",
+                    borderRadius: "3px",
+                    marginTop: "10px",
+                  }}
+                >
+                  Mark Resolved
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
       ) : (
         <p>No requests available.</p>
       )}

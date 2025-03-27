@@ -1,23 +1,20 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 
 const Navbar = () => {
   const [userRole, setUserRole] = useState(localStorage.getItem("role") || null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    const updateRole = () => {
-      setUserRole(localStorage.getItem("role"));
-    };
-
-    window.addEventListener("storage", updateRole); // Listen for localStorage changes
-    return () => window.removeEventListener("storage", updateRole); // Cleanup
-  }, []);
+    // Update role whenever the URL changes
+    setUserRole(localStorage.getItem("role"));
+  }, [location.pathname]); // Runs when URL changes
 
   const handleLogout = () => {
     localStorage.clear();
-    setUserRole(null); // Immediately update UI
-    navigate("/login");
+    setUserRole(null);
+    window.location.href = "/login"; // Force full reload for clean state
   };
 
   return (

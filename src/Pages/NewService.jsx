@@ -88,7 +88,9 @@ const NewService = () => {
     >
       <h2 style={{ textAlign: "center", color: "#333" }}>New Service Request</h2>
 
-      <select
+      <input
+        type="text"
+        placeholder="Enter Request Type"
         value={requestType}
         onChange={(e) => setRequestType(e.target.value)}
         required
@@ -98,12 +100,7 @@ const NewService = () => {
           borderRadius: "5px",
           border: "1px solid #ccc",
         }}
-      >
-        <option value="">Select Request Type</option>
-        <option value="Gas Leak">Gas Leak</option>
-        <option value="Pipeline Maintenance">Pipeline Maintenance</option>
-        <option value="Billing Issue">Billing Issue</option>
-      </select>
+      />
 
       <textarea
         placeholder="Describe your request"
